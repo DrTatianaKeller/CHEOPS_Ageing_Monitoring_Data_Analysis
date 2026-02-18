@@ -82,9 +82,7 @@ The application requires:
 
 ### targets.csv
 
-This table is based on the CHEOPS Ageing Monitoring Google Sheet:
-
-https://docs.google.com/spreadsheets/d/1JCyWPgJedSkTo_m9MEB5y2f6ZGlopYskThlmsWYe0X0/edit?gid=0#gid=0  
+This table is based on the CHEOPS Ageing Monitoring Google Sheet
 
 Important:
 
