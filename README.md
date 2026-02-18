@@ -151,9 +151,19 @@ plotly
 ---
 
 ## Environment Setup
+Option 1 conda:
 
 conda env create -f environment.yml  
 conda activate cheops_MC_APP  
+
+
+
+Option 2 pip:
+
+python3 -m venv cheops_MC_APP
+source cheops_MC_APP/bin/activate
+pip install -r requirements.txt
+
 
 ---
 
