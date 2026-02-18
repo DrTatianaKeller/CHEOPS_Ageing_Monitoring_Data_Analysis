@@ -176,7 +176,7 @@ def get_targets_accessibility_table():
         available_or_ids = set()
 
         for filepath in available_files:
-            or_id = get_or_id_from_filepath(filepath)  # your existing helper
+            or_id = get_or_id_from_filepath(filepath)  #  existing helper
             if or_id:
                 available_or_ids.add(or_id.lower())
 
@@ -202,7 +202,7 @@ def get_targets_accessibility_table():
         for source_key, col_name in checks:
             has_data = False
             for avail_or_id in available_or_ids_by_source.get(source_key, set()):
-                if fuzzy_match_or_id(clean_or_id, avail_or_id):  # your existing fuzzy matcher
+                if fuzzy_match_or_id(clean_or_id, avail_or_id):  # existing fuzzy matcher
                     has_data = True
                     break
             out_row[col_name] = "✓" if has_data else "✗"
@@ -434,6 +434,14 @@ def load_data_for_analysis(analysis_type, remove_outliers_flag=False, sigma_thre
         try:
             with fits.open(fits_file) as hdul:
                 target_name = extract_target_name(hdul, source_config, fits_file)
+                
+                # If target not found in targets.csv, fall back to TARGNAME in FITS header
+                if target_name == 'Unknown':
+                    target_header = source_config.get('target_header', 'TARGNAME')
+                    for ext in hdul:
+                        if hasattr(ext, 'header') and target_header in ext.header:
+                            target_name = ext.header[target_header]
+                            break
                 
                 # Find the correct data extension
                 if 'extension' in source_config:

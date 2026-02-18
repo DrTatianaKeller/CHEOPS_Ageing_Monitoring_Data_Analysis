@@ -115,8 +115,8 @@ else:
     end_date = date_placeholder.date_input("Show data till date", value=max_date, min_value=min_date, max_value=max_date)
     
     # Plot type selection (in Display Options section via placeholder)
-    plot_type = plot_type_placeholder.selectbox("Plot Type", ["Line", "Dots", "Line + Dots"])
-    mode_map = {"Line": "lines", "Dots": "markers", "Line + Dots": "lines+markers"}
+    plot_type = plot_type_placeholder.selectbox("Plot Type", ["Line + Dots","Line", "Dots"])
+    mode_map = { "Line + Dots": "lines+markers","Line": "lines", "Dots": "markers"}
     plot_mode = mode_map[plot_type]
     
     # Filter data by target and date
@@ -307,7 +307,7 @@ else:
         
         # Prepare year formatting for plots
         year_shapes = get_year_separators(filtered_df['Date of visit'])
-        year_tickvals, year_ticktext = get_year_ticks(filtered_df['Date of visit'])
+        year_tickvals, year_ticktext,year_x_range = get_year_ticks(filtered_df['Date of visit'])
         
 
 
@@ -381,7 +381,7 @@ else:
                         fig = create_dual_axis_plot(
                             left_target_df['Date of visit'], left_target_df[left_stat], f"{left_analysis}: {left_stat}",
                             right_target_df['Date of visit'], right_target_df[right_stat], f"{right_analysis}: {right_stat}",
-                            selected_target, plot_mode, year_shapes, year_tickvals, year_ticktext
+                            selected_target, plot_mode, year_shapes, year_tickvals, year_ticktext, year_x_range
                         )
                         st.plotly_chart(fig, width='stretch')
                     else:
@@ -428,11 +428,11 @@ else:
                     # Show plots
                     col1, col2 = st.columns(2)
                     with col1:
-                        fig = create_plot(filtered_df, left, plot_mode, year_shapes, year_tickvals, year_ticktext)
+                        fig = create_plot(filtered_df, left, plot_mode, year_shapes, year_tickvals, year_ticktext,year_x_range)
                         st.plotly_chart(fig, width='stretch')
                     with col2:
                         if right:
-                            fig = create_plot(filtered_df, right, plot_mode, year_shapes, year_tickvals, year_ticktext)
+                            fig = create_plot(filtered_df, right, plot_mode, year_shapes, year_tickvals, year_ticktext,year_x_range)
                             st.plotly_chart(fig, width='stretch')
         
         # =========================================================================
@@ -453,7 +453,7 @@ else:
                 st.markdown(f"### {group_name}")
                 for col in group_cols:
                     st.markdown(f"#### {col}")
-                    fig = create_plot(filtered_df, col, plot_mode, year_shapes, year_tickvals, year_ticktext)
+                    fig = create_plot(filtered_df, col, plot_mode, year_shapes, year_tickvals, year_ticktext,year_x_range)
                     st.plotly_chart(fig, width='stretch')
         
 # =============================================================================

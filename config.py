@@ -42,7 +42,9 @@ STAT_DEFINITIONS = {
 # time column for dates, and target header for target names
 data_directory = '../DATA'
 general_report_directory = f'{data_directory}/general_report'
-lightcurve_directory = f'{data_directory}/lightcurve_data'
+DRP_lightcurve_directory = f'{data_directory}/lightcurve_data'
+RPC_lightcurve_directory = f'{data_directory}/lightcurve_data'
+PIPE_lightcurve_directory = f'{data_directory}/PIPE_lightcurve'
 SCI_RAW_directory = f'{data_directory}/sci_raw_data'
 
 # Path to targets.csv file containing target-to-directory mapping
@@ -50,14 +52,41 @@ TARGETS_CSV_PATH = f'{data_directory}/tables/targets.csv'
 
 
 DATA_SOURCES = {
-    'lightcurve': {
-        'directory': lightcurve_directory,
+    'DRP_lightcurve': {
+        'directory': DRP_lightcurve_directory,
         'pattern': '**/*R25_V*.fits',
         'exclude_pattern': 'R25_Fixed',
         'extension': 1,
         'time_column': 'UTC_TIME',
         'target_header': 'TARGNAME'
     },
+    'RPC_lightcurve': {
+        'directory': RPC_lightcurve_directory,
+        'pattern': '**/*R25_V*.fits',
+        'exclude_pattern': 'R25_Fixed',
+        'extension': 1,
+        'time_column': 'UTC_TIME',
+        'target_header': 'TARGNAME'
+    },
+    'PIPE_lightcurve_sa': {
+        'directory': PIPE_lightcurve_directory,
+        'pattern': '**/*_sa.fits',
+        'exclude_pattern': 'im.fits',
+        'extension': 1,
+        'time_column': 'MJD_TIME',
+        'time_format': 'mjd',
+        'target_header': 'TARGNAME'
+    },
+     'PIPE_lightcurve_im': {
+        'directory': PIPE_lightcurve_directory,
+        'pattern': '**/*_im.fits',
+        'exclude_pattern': 'sa.fits',
+        'extension': 1,
+        'time_column': 'MJD_TIME',
+        'time_format': 'mjd',
+        'target_header': 'TARGNAME'
+    },
+
     'sci_raw_metadata': {
         'directory': SCI_RAW_directory,
         'pattern': '**/*SCI_RAW_SubArray*.fits',
@@ -109,8 +138,8 @@ DATA_SOURCES = {
 # - parameters: grouped parameters to extract from FITS data
 # - description: shown in the sidebar "About" section
 ANALYSIS_TYPES = {
-    'Lightcurve': {
-        'source': 'lightcurve',
+    'DRP Lightcurve': {
+        'source': 'DRP_lightcurve',
         'calculate_stats': True,
         'parameters': {
             'FLUX': ['FLUX'],
@@ -118,8 +147,47 @@ ANALYSIS_TYPES = {
             'CONTA_LC': ['CONTA_LC'],
             'SMEARING_LC': ['SMEARING_LC']
         },
-        'description': 'Time-series photometric data'
+        'description': 'Time-series RAW photometric data'
     },
+     'RPC Lightcurve': {
+        'source': 'RPC_lightcurve',
+        'calculate_stats': True,
+        'parameters': {
+            'FLUX': ['FLUX'],
+            'BACKGROUND': ['BACKGROUND'],
+            'CONTA_LC': ['CONTA_LC'],
+            'SMEARING_LC': ['SMEARING_LC']
+        },
+        'description': 'Time-series processed photometric data'
+    },
+
+    'PIPE Lightcurve (sa)': {
+        'source': 'PIPE_lightcurve_sa',
+        'calculate_stats': True,
+        'parameters': {
+            'FLUX': ['FLUX'],
+            'FLUXERR': ['FLUXERR'],
+            'Background': ['BG'],
+            'Position': ['XC', 'YC'],
+            'Roll': ['ROLL'],
+            'thermFront_2': ['thermFront_2']
+        },
+        'description': 'PIPE lightcurve from SubArray data'
+    },
+      'PIPE Lightcurve (im)': {
+        'source': 'PIPE_lightcurve_im',
+        'calculate_stats': True,
+        'parameters': {
+            'FLUX': ['FLUX'],
+            'FLUXERR': ['FLUXERR'],
+            'Background': ['BG'],
+            'Position': ['XC', 'YC'],
+            'Roll': ['ROLL'],
+            'thermFront_2': ['thermFront_2']
+        },
+        'description': 'PIPE lightcurve from Imagette data'
+    },
+
     'Geometry': {
         'source': 'sci_raw_metadata',
         'calculate_stats': True,
@@ -215,48 +283,3 @@ ANALYSIS_TYPES = {
     }
 }
 
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
-
-def get_all_parameters(analysis_type):
-    """Get flat list of all parameter names for an analysis type."""
-    if analysis_type not in ANALYSIS_TYPES:
-        return []
-    params = []
-    for group_params in ANALYSIS_TYPES[analysis_type]['parameters'].values():
-        params.extend(group_params)
-    return params
-
-
-def get_stat_columns(analysis_type):
-    """
-    Get dictionary of statistic column names grouped by parameter group.
-    For calculate_stats=True: returns param_metric names (e.g., FLUX_mean)
-    For calculate_stats=False: returns raw parameter names
-    """
-    if analysis_type not in ANALYSIS_TYPES:
-        return {}
-    
-    config = ANALYSIS_TYPES[analysis_type]
-    
-    # For direct value analysis, just return the raw parameter names
-    if not config.get('calculate_stats', True):
-        return {group: params for group, params in config['parameters'].items()}
-    
-    # Build statistic column names for each parameter group
-    stat_columns = {}
-    for group_name, params in config['parameters'].items():
-        stat_columns[group_name] = []
-        for param in params:
-            for metric in STATISTICS_METRICS:
-                stat_columns[group_name].append(f'{param}_{metric}')
-    return stat_columns
-
-
-def get_stat_definition(stat_name):
-    """Get human-readable definition for a statistic column name."""
-    for key in STAT_DEFINITIONS:
-        if stat_name.endswith(f'_{key}') or stat_name == key:
-            return STAT_DEFINITIONS[key]
-    return ""

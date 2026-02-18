@@ -9,7 +9,7 @@ and statistics retrieval.
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from datetime import datetime
+from datetime import datetime, timedelta
 import streamlit as st
 from config import STATISTICS_METRICS, STAT_DEFINITIONS, ANALYSIS_TYPES
 
@@ -89,14 +89,16 @@ def get_cached_data(analysis_type, remove_outliers, sigma_threshold):
 def get_year_separators(dates):
     """
     Create grey background rectangles for alternating years.
+    These help visually separate data by year on the plots.
+    Returns list of Plotly shape dictionaries.
     """
     min_year = dates.dt.year.min()
     max_year = dates.dt.year.max()
     shapes = []
     
-    # Add grey rectangle for odd years
-    for i, year in enumerate(range(min_year, max_year + 1)):
-        if i % 2 == 1:
+    # Cover range including neighboring years for proper shading at edges
+    for year in range(min_year - 1, max_year + 2):
+        if year % 2 == 1:
             shapes.append(dict(
                 type="rect",
                 x0=datetime(year, 1, 1),
@@ -112,23 +114,28 @@ def get_year_separators(dates):
 def get_year_ticks(dates):
     """
     Create tick marks for year labels on top x-axis.
-    Places ticks at mid-year (July 1) for each year.
-    Returns (tick positions, tick labels).
+    Places ticks at July 1 (center of each year band) for every year
+    that contains data. Returns (tick positions, tick labels, x-axis range).
+    The range always covers full years: Jan 1 of first year to Jan 1 after last year.
     """
     min_year = dates.dt.year.min()
     max_year = dates.dt.year.max()
-    years = list(range(min_year, max_year + 2))
+    years = list(range(min_year, max_year + 1))
     
-    # Position ticks at July 1 of each year (center of year)
+    # Position ticks at July 1 of each year (center of the Jan-Dec band)
     tickvals = [datetime(year, 7, 1) for year in years]
     ticktext = [str(year) for year in years]
-    return tickvals, ticktext
+    
+    # Range covers exactly the years that have data
+    x_range = [datetime(min_year, 1, 1), datetime(max_year + 1, 1, 1)]
+    
+    return tickvals, ticktext, x_range
 
 # =============================================================================
 # PLOTTING FUNCTIONS
 # =============================================================================
 
-def create_plot(df, column, mode, year_shapes, year_tickvals, year_ticktext):
+def create_plot(df, column, mode, year_shapes, year_tickvals, year_ticktext, x_range):
     """
     Create a single time-series plot for one statistic.
     
@@ -138,7 +145,9 @@ def create_plot(df, column, mode, year_shapes, year_tickvals, year_ticktext):
     - mode: Plotly line mode ('lines', 'markers', or 'lines+markers')
     - year_shapes: Grey rectangles for alternating years
     - year_tickvals, year_ticktext: Tick marks for year axis
-
+    - x_range: [start, end] for the x-axis covering full years
+    
+    Returns: Plotly Figure object
     """
     fig = go.Figure()
     
@@ -151,30 +160,28 @@ def create_plot(df, column, mode, year_shapes, year_tickvals, year_ticktext):
         showlegend=False
     ))
     
-    # Configure layout with dual x-axes: months and years
+    # Configure layout with dual x-axes
     fig.update_layout(
         title=dict(text=column, x=0.5, xanchor='center', font=dict(color='black', size=14)),
         # Bottom axis: quarterly month labels
-        xaxis=dict(tickformat="%b", dtick="M3", showgrid=True, gridcolor='lightgray', tickfont=dict(color='black')),
-
-        # Top axis: year labels
+        xaxis=dict(tickformat="%b", dtick="M3", showgrid=True, gridcolor='lightgray',
+                   tickfont=dict(color='black'), range=x_range),
+        # Top axis: year labels at July 1, centered in each year band
         xaxis2=dict(overlaying='x', side='top', tickvals=year_tickvals, ticktext=year_ticktext, 
-                    tickfont=dict(size=11, color='black'), showgrid=False),
+                    tickfont=dict(size=11, color='black'), showgrid=False, range=x_range),
         yaxis=dict(title=dict(text=column, font=dict(color='black')), showgrid=True, 
                    gridcolor='lightgray', tickfont=dict(color='black')),
-
         height=350, margin=dict(l=60, r=20, t=60, b=40),
         shapes=year_shapes, plot_bgcolor='white', paper_bgcolor='white', showlegend=False
     )
     
-    # Add invisible trace to activate the top x-axis
-    fig.add_trace(go.Scatter(x=df['Date of visit'], y=[None]*len(df), xaxis='x2', showlegend=False))
+    # Add invisible trace spanning full range to activate the top x-axis
+    fig.add_trace(go.Scatter(x=[x_range[0], x_range[1]], y=[None, None], xaxis='x2', showlegend=False))
     
     return fig
 
 
-def create_dual_axis_plot(left_dates, left_values, left_label, right_dates, right_values, right_label, 
-                           target, mode, year_shapes, year_tickvals, year_ticktext):
+def create_dual_axis_plot(left_dates, left_values, left_label, right_dates, right_values, right_label, target, mode, year_shapes, year_tickvals, year_ticktext, x_range):
     """
     Create a correlation plot with two y-axes.
     Allows comparing any two statistics from different analysis types.
@@ -186,6 +193,9 @@ def create_dual_axis_plot(left_dates, left_values, left_label, right_dates, righ
     - target: Target name for plot title
     - mode: Plotly line mode
     - year_shapes, year_tickvals, year_ticktext: Year formatting
+    - x_range: [start, end] for the x-axis covering full years
+    
+    Returns: Plotly Figure object
     """
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
@@ -198,9 +208,10 @@ def create_dual_axis_plot(left_dates, left_values, left_label, right_dates, righ
     # Configure layout
     fig.update_layout(
         title=dict(text=f"Correlation Analysis for {target}", x=0.5, xanchor='center', font=dict(color='black', size=16)),
-        xaxis=dict(tickformat="%b", dtick="M3", showgrid=True, gridcolor='lightgray', tickfont=dict(color='black')),
+        xaxis=dict(tickformat="%b", dtick="M3", showgrid=True, gridcolor='lightgray',
+                   tickfont=dict(color='black'), range=x_range),
         xaxis2=dict(overlaying='x', side='top', tickvals=year_tickvals, ticktext=year_ticktext,
-                    tickfont=dict(size=12, color='black'), showgrid=False),
+                    tickfont=dict(size=12, color='black'), showgrid=False, range=x_range),
         height=500,
         legend=dict(orientation="h", yanchor="bottom", y=1.08, xanchor="right", x=1, font=dict(color='black')),
         shapes=year_shapes, plot_bgcolor='white', paper_bgcolor='white'
@@ -212,9 +223,8 @@ def create_dual_axis_plot(left_dates, left_values, left_label, right_dates, righ
     fig.update_yaxes(title_text=right_label, secondary_y=True, title_font=dict(color='#ff7f0e'),
                      tickfont=dict(color='black'), showgrid=False)
     
-    # Add invisible trace to activate top x-axis
-    all_dates = list(left_dates) + list(right_dates)
-    fig.add_trace(go.Scatter(x=all_dates[:1] if all_dates else [], y=[None], xaxis='x2', showlegend=False))
+    # Add invisible trace spanning full range to activate top x-axis
+    fig.add_trace(go.Scatter(x=[x_range[0], x_range[1]], y=[None, None], xaxis='x2', showlegend=False))
     
     return fig
 
