@@ -55,7 +55,10 @@ Selection of target based on `targets.csv`.
 
 #### Analysis Types
 
-- Lightcurve (lightcurve data)  
+- DRP Lightcurve (lightcurve data) 
+- RPC Lightcurve (reprocessed data from analysits) - this data need to be requested from Analysts
+- PIPE Lightcurve (im) - PIPE processed data for imagette - this data need to be upload from PIPE
+- PIPE Lightcurve (sa) - PIPE processed data for subarray - this data need to be upload from PIPE  
 - Geometry (sci_raw)  
 - Voltages (sci_raw)  
 - Temperatures (sci_raw)  
@@ -74,11 +77,27 @@ Each analysis type contains predefined parameter sets.
 
 Example:
 
-Lightcurve:
+DRP Lightcurve:
 - FLUX
 - BACKGROUND
 - CONTA_LC
 - SMEARING_LC
+
+RPC Lightcurve:
+- FLUX
+- BACKGROUND
+- CONTA_LC
+- SMEARING_LC
+
+PIPE Lightcurve (im/sa)
+- 'FLUX'
+- 'FLUXERR'
+- 'Background'
+- 'XC'
+- 'YC'
+- 'ROLL'
+- 'thermFront_2'
+
 
 Geometry:
 - LOS_TO_SUN_ANGLE
