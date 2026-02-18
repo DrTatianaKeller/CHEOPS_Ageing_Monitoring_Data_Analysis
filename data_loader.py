@@ -27,8 +27,7 @@ from config import ANALYSIS_TYPES, DATA_SOURCES, STATISTICS_METRICS,TARGETS_CSV_
 def load_targets_table():
     """
     Load the targets.csv file which maps OR IDs to target names. 
-    This table made from original CHEOPS Ageing Monitoring gogle sheet:
-    https://docs.google.com/spreadsheets/d/1JCyWPgJedSkTo_m9MEB5y2f6ZGlopYskThlmsWYe0X0/edit?gid=0#gid=0
+    This table made from original CHEOPS Ageing Monitoring gogle sheet
     Returns DataFrame with columns: Target, OR ID, Date of visit, Year
     """
     try:
