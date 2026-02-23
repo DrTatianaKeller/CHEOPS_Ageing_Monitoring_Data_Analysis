@@ -267,19 +267,43 @@ ANALYSIS_TYPES = {
         'description': '90% encircled energy measurements'
     },
     # PSF Shape uses calculate_stats: False to display raw values from FITS
+        # PSF Shape uses calculate_stats: False to display raw values from FITS
     'PSF Shape': {
         'source': 'general_report',
         'calculate_stats': False,
         'parameters': {
-            'Location': ['cntr', 'loc_x', 'loc_y'],
-            'Sigma': ['sy_std', 'sx_std', 'sy_max', 'sx_max', 'sy_diff', 'sx_diff'],
-            'Radius': ['ry_max', 'rx_max', 'ry_min', 'rx_min', 'ry_avr', 'rx_avr', 'ry_std', 'rx_std'],
-            'Height': ['h_avr', 'h_std', 'h_max', 'h_min']
+            'Location': ['loc_x', 'loc_y'],
+            'Scan Analysis': ['sy_std', 'sx_std', 'sy_max', 'sx_max', 'sy_diff', 'sx_diff'],
+            'Rotation Analysis': ['ry_max', 'rx_max', 'ry_min', 'rx_min', 'ry_avr', 'rx_avr', 'ry_std', 'rx_std'],
+            'Homogeneity analysis': ['h_avr', 'h_std', 'h_max', 'h_min']
         },
         'description': 'PSF shape parameters (direct values)',
         'direct_columns': ['cntr', 'loc_x', 'loc_y', 'sy_std', 'sx_std', 'sy_max', 'sx_max', 
                           'sy_diff', 'sx_diff', 'ry_max', 'rx_max', 'ry_min', 'rx_min', 
-                          'ry_avr', 'rx_avr', 'ry_std', 'rx_std', 'h_avr', 'h_std', 'h_max', 'h_min']
+                          'ry_avr', 'rx_avr', 'ry_std', 'rx_std', 'h_avr', 'h_std', 'h_max', 'h_min'],
+        'column_descriptions': {
+            'cntr': 'Visit Counter',
+            'loc_x': 'Location of the PSF (x)',
+            'loc_y': 'Location of the PSF (y)',
+            'sx_std': 'Scan analysis: standard dev of the PSF center (50% cum. flux) [x]',
+            'sy_std': 'Scan analysis: standard dev of the PSF center (50% cum. flux) [y]',
+            'sx_max': 'Scan analysis: maximal diameter of the PSF (5% - 95% cum. flux) [x]',
+            'sy_max': 'Scan analysis: maximal diameter of the PSF (5% - 95% cum. flux) [y]',
+            'sx_diff': 'Scan analysis: mean size difference between the sides of the PSF [x]',
+            'sy_diff': 'Scan analysis: mean size difference between the sides of the PSF [y]',
+            'rx_max': 'Rotation analysis (5% - 95% cum. flux): maximal diameter of the PSF [x]',
+            'ry_max': 'Rotation analysis (5% - 95% cum. flux): maximal diameter of the PSF [y]',
+            'rx_min': 'Rotation analysis (5% - 95% cum. flux): Minimal diameter of the PSF [x]',
+            'ry_min': 'Rotation analysis (5% - 95% cum. flux): Minimal diameter of the PSF [y]',
+            'rx_avr': 'Rotation analysis (5% - 95% cum. flux): Mean of the diameter of the PSF [x]',
+            'ry_avr': 'Rotation analysis (5% - 95% cum. flux): Mean of the diameter of the PSF [y]',
+            'rx_std': 'Rotation analysis (5% - 95% cum. flux): STD of the diameter of the PSF [x]',
+            'ry_std': 'Rotation analysis (5% - 95% cum. flux): STD of the diameter of the PSF [y]',
+            'h_avr': 'Homogeneity analysis: mean flux',
+            'h_std': 'Homogeneity analysis: standard deviation of the flux',
+            'h_max': 'Homogeneity analysis: largest positive deviance from mean flux',
+            'h_min': 'Homogeneity analysis: largest negative deviance from mean flux'
+        }
     }
 }
 

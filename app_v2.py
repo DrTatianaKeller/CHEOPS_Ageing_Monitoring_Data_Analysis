@@ -440,7 +440,7 @@ else:
         # =========================================================================
         else:
             st.subheader("Direct Parameter Values")
-            st.info("This analysis shows raw values from FITS files without statistics.")
+            st.info("This analysis shows raw values from FITS files without statistics calculations.")
             
             # Display plots for each parameter group
             for group_name in selected_groups:
@@ -452,7 +452,12 @@ else:
                 
                 st.markdown(f"### {group_name}")
                 for col in group_cols:
-                    st.markdown(f"#### {col}")
+                    col_descriptions = analysis_config.get('column_descriptions', {})
+                    desc = col_descriptions.get(col, '')
+                    if desc:
+                        st.markdown(f"#### {desc}")
+                    else:
+                        st.markdown(f"#### {col}")
                     fig = create_plot(filtered_df, col, plot_mode, year_shapes, year_tickvals, year_ticktext,year_x_range)
                     st.plotly_chart(fig, width='stretch')
         
