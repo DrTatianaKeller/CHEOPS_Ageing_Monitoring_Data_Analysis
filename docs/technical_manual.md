@@ -339,19 +339,7 @@ The binned noise is defined as:
 
 ---
 
-#### Interpretation
 
-For uncorrelated (white) noise, the expected behaviour is:
-
-σ_bin ∝ σ₀ / √N
-
-Deviations from this relation indicate:
-
-- correlated noise  
-- instrumental systematics  
-- astrophysical variability  
-
----
 
 #### Requirements
 
