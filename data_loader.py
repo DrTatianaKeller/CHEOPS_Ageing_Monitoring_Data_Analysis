@@ -16,8 +16,8 @@ from astropy.io import fits
 from astropy.time import Time
 from scipy import stats
 import streamlit as st
-
-from config import ANALYSIS_TYPES, DATA_SOURCES, STATISTICS_METRICS,TARGETS_CSV_PATH
+from functions import calculate_statistics
+from config import ANALYSIS_TYPES, DATA_SOURCES, STATISTICS_METRICS,TARGETS_CSV_PATH, LIGHT_CURVE_SOURCES
 
 # =============================================================================
 # TARGETS TABLE
@@ -242,28 +242,7 @@ def remove_outliers_array(data, sigma_threshold=3.0):
     mask = (data >= lower) & (data <= upper)
     return data[mask], mask
 
-# =============================================================================
-# STATISTICS CALCULATION
-# =============================================================================
 
-def calculate_statistics(data, prefix):
-    """
-    Calculate all statistics for a data array.
-    Returns dictionary with keys like 'prefix_mean', 'prefix_median', etc.
-    """
-    return {
-        f'{prefix}_mean': np.mean(data),
-        f'{prefix}_median': np.median(data),
-        f'{prefix}_sigma': np.std(data),
-        f'{prefix}_mad': np.median(np.abs(data - np.median(data))),
-        f'{prefix}_min': np.min(data),
-        f'{prefix}_max': np.max(data),
-        f'{prefix}_ptp': np.ptp(data),  # peak-to-peak (max - min)
-        f'{prefix}_p01': np.percentile(data, 1),
-        f'{prefix}_p99': np.percentile(data, 99),
-        f'{prefix}_skew': stats.skew(data),
-        f'{prefix}_kurtosis': stats.kurtosis(data)
-    }
 
 # =============================================================================
 # FILE DISCOVERY
@@ -476,6 +455,25 @@ def load_data_for_analysis(analysis_type, remove_outliers_flag=False, sigma_thre
                     'file': os.path.basename(fits_file),
                     'n_observations': len(data)
                 }
+
+                # Extract time array in hours for binned noise calculation
+                # Only for lightcurve analysis types
+                times_hours = None
+                if calculate_stats and source_name in LIGHT_CURVE_SOURCES:
+                    try:
+                        if 'MJD_TIME' in data.names:
+                            mjd = data['MJD_TIME'].astype(float)
+                            times_hours = (mjd - mjd[0]) * 24.0
+                        elif time_column in data.names and time_format == 'mjd':
+                            mjd = data[time_column].astype(float)
+                            times_hours = (mjd - mjd[0]) * 24.0
+                        elif 'UTC_TIME' in data.names:
+                            utc_strs = [str(t) for t in data['UTC_TIME']]
+                            t_obj = Time(utc_strs, format='isot')
+                            mjd = t_obj.mjd
+                            times_hours = (mjd - mjd[0]) * 24.0
+                    except:
+                        times_hours = None
                 
                 # Process each parameter
                 for param in all_params:
@@ -491,21 +489,29 @@ def load_data_for_analysis(analysis_type, remove_outliers_flag=False, sigma_thre
                         continue
                     
                     # Remove NaN values
-                    valid_data = param_data[~np.isnan(param_data)]
+                    valid_mask = ~np.isnan(param_data)
+                    valid_data = param_data[valid_mask]
                     
                     if len(valid_data) == 0:
                         continue
-                    
+
+                     # Get matching time array for valid (non-NaN) data points
+                    valid_times = None
+                    if times_hours is not None and len(times_hours) == len(param_data):
+                        valid_times = times_hours[valid_mask]
+
                     # Optionally remove outliers
                     if remove_outliers_flag and calculate_stats:
-                        valid_data, _ = remove_outliers_array(valid_data, sigma_threshold)
+                        valid_data, outlier_mask = remove_outliers_array(valid_data, sigma_threshold)
+                        if valid_times is not None:
+                            valid_times = valid_times[outlier_mask]
                     
                     if len(valid_data) == 0:
                         continue
                     
                     # Calculate statistics or store raw values
                     if calculate_stats:
-                        param_stats = calculate_statistics(valid_data, param)
+                        param_stats = calculate_statistics(valid_data, param, times_hours=valid_times)
                         record.update(param_stats)
                     else:
                         record[param] = valid_data.tolist() if len(valid_data) > 1 else valid_data[0]
@@ -664,3 +670,4 @@ def load_psf_data():
     df = df.sort_values('Date of visit')
     
     return df
+

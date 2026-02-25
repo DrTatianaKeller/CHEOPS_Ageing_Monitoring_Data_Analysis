@@ -30,6 +30,30 @@ The software is designed for:
 - Time-series and correlation analysis  
 
 ---
+---
+
+## Statistical Analysis
+
+The application computes a set of statistical metrics for each parameter, including:
+
+- mean, median, standard deviation  
+- median absolute deviation (MAD)  
+- percentiles and distribution moments  
+- **binned noise metrics for lightcurve data**
+
+### Binned Noise
+
+For lightcurve-based analysis, the tool evaluates noise behaviour over different time scales:
+
+- `bin_noise_1h` — noise in 1-hour bins  
+- `bin_noise_3h` — noise in 3-hour bins  
+- `bin_noise_6h` — noise in 6-hour bins  
+
+These metrics quantify how noise evolves with temporal averaging and help identify correlated noise and systematics.
+
+Detailed definitions and methodology are provided in:
+
+docs/technical_manual.md
 
 ## Repository Structure
 

@@ -11,9 +11,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import streamlit as st
-from config import STATISTICS_METRICS, STAT_DEFINITIONS, ANALYSIS_TYPES
-
-from data_loader import load_data_for_analysis, load_psf_data
+from config import LIGHT_CURVE_SOURCES, STATISTICS_METRICS, STAT_DEFINITIONS, ANALYSIS_TYPES
+import numpy as np
+from scipy import stats
+#from data_loader import load_data_for_analysis, load_psf_data
 
 # =============================================================================
 # CONFIGURATIONS HELPER FUNCTIONS
@@ -45,11 +46,19 @@ def get_stat_columns(analysis_type):
         return {group: params for group, params in config['parameters'].items()}
     
     # Build statistic column names for each parameter group
+  
+    source = config.get('source', '')
+    if source in LIGHT_CURVE_SOURCES:
+        metrics = STATISTICS_METRICS
+    else:
+        metrics = [m for m in STATISTICS_METRICS if not m.startswith('bin_noise')]
+    
+    # Build statistic column names for each parameter group
     stat_columns = {}
     for group_name, params in config['parameters'].items():
         stat_columns[group_name] = []
         for param in params:
-            for metric in STATISTICS_METRICS:
+            for metric in metrics:
                 stat_columns[group_name].append(f'{param}_{metric}')
     return stat_columns
 
@@ -77,10 +86,20 @@ def color_checkmarks(val):
 def get_cached_data(analysis_type, remove_outliers, sigma_threshold):
     """
     Load data with caching for the correlation analysis.
+    Local import avoids circular dependency.
     """
-    if analysis_type == 'PSF Shape':
-        return load_psf_data()
-    return load_data_for_analysis(analysis_type, remove_outliers, sigma_threshold, None)
+    from data_loader import load_data_for_analysis, load_psf_data
+
+    if analysis_type == "PSF Shape":
+        return load_psf_data(remove_outliers_flag=remove_outliers, sigma_threshold=sigma_threshold)
+
+    return load_data_for_analysis(
+        analysis_type,
+        remove_outliers_flag=remove_outliers,
+        sigma_threshold=sigma_threshold,
+        selected_params=None
+    )
+
 
 # =============================================================================
 # PLOT FORMATTING HELPERS
@@ -228,6 +247,60 @@ def create_dual_axis_plot(left_dates, left_values, left_label, right_dates, righ
     
     return fig
 
+def create_combined_noise_plot(df, param, mode, year_shapes, year_tickvals, 
+                               year_ticktext, x_range, selected_levels=None, log_y=False):
+    """
+    Combined plot showing selected noise levels for a parameter.
+    - selected_levels: list of keys ['sigma', '1h', '3h', '6h']
+    - log_y: logarithmic y-axis toggle
+    """
+    if selected_levels is None:
+        selected_levels = ['sigma', '1h', '3h', '6h']
+    
+    fig = go.Figure()
+    
+    all_traces = {
+        'sigma': (f'{param}_sigma', 'sigma (unbinned)', '#d62728'),
+        '1h': (f'{param}_bin_noise_1h', 'bin_noise_1h', '#1f77b4'),
+        '3h': (f'{param}_bin_noise_3h', 'bin_noise_3h', '#ff7f0e'),
+        '6h': (f'{param}_bin_noise_6h', 'bin_noise_6h', '#2ca02c'),
+    }
+    
+    for level in selected_levels:
+        if level not in all_traces:
+            continue
+        col, name, color = all_traces[level]
+        if col in df.columns:
+            fig.add_trace(go.Scatter(
+                x=df['Date of visit'], y=df[col],
+                mode=mode, name=name,
+                line=dict(color=color),
+                marker=dict(color=color)
+            ))
+    
+    shown = [all_traces[l][1] for l in selected_levels if l in all_traces]
+    title_text = f"{param} — Noise: {', '.join(shown)}"
+    
+    yaxis_type = 'log' if log_y else 'linear'
+    
+    fig.update_layout(
+        title=dict(text=title_text, x=0.5, xanchor='center', font=dict(color='black', size=14)),
+        xaxis=dict(tickformat="%b", dtick="M3", showgrid=True, gridcolor='lightgray',
+                   tickfont=dict(color='black'), range=x_range),
+        xaxis2=dict(overlaying='x', side='top', tickvals=year_tickvals, ticktext=year_ticktext,
+                    tickfont=dict(size=11, color='black'), showgrid=False, range=x_range),
+        yaxis=dict(title=dict(text="Noise", font=dict(color='black')), showgrid=True,
+                   gridcolor='lightgray', tickfont=dict(color='black'), type=yaxis_type),
+        height=400, margin=dict(l=60, r=20, t=60, b=40),
+        shapes=year_shapes, plot_bgcolor='white', paper_bgcolor='white',
+        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02, 
+                    font=dict(color='black'))
+    )
+    
+    fig.add_trace(go.Scatter(x=[x_range[0], x_range[1]], y=[None, None], xaxis='x2', showlegend=False))
+    
+    return fig
+
 # =============================================================================
 # STATISTICS HELPERS
 # =============================================================================
@@ -263,3 +336,87 @@ def get_available_stats(analysis_type, param_group=None):
     for cols in stat_columns.values():
         all_stats.extend(cols)
     return all_stats
+
+# =============================================================================
+# BIN NOISE CALCULATION
+# =============================================================================
+def calculate_binned_noise(data, times_hours, bin_size_hours):
+    """
+    Binned noise: standard deviation of binned means.
+    Returns NaN if fewer than 2 bins.
+    """
+    data = np.asarray(data, dtype=float)
+    times_hours = np.asarray(times_hours, dtype=float)
+
+    if data.size < 2 or times_hours.size < 2:
+        return np.nan
+
+    t0 = times_hours.min()
+    t1 = times_hours.max()
+    if not np.isfinite(t0) or not np.isfinite(t1) or t1 <= t0:
+        return np.nan
+
+    n_bins = int(np.ceil((t1 - t0) / bin_size_hours))
+    if n_bins < 2:
+        return np.nan
+
+    edges = t0 + np.arange(n_bins + 1) * bin_size_hours
+
+    bin_means = []
+    for i in range(n_bins):
+        if i == n_bins - 1:
+            mask = (times_hours >= edges[i]) & (times_hours <= edges[i + 1])
+        else:
+            mask = (times_hours >= edges[i]) & (times_hours < edges[i + 1])
+
+        if np.any(mask):
+            bin_means.append(np.nanmean(data[mask]))
+
+    if len(bin_means) < 2:
+        return np.nan
+
+    return float(np.nanstd(bin_means))
+
+
+# =============================================================================
+# STATISTICS CALCULATION
+# =============================================================================
+def calculate_statistics(data, prefix, times_hours=None):
+    """
+    Calculate statistics for a data array.
+    If times_hours is provided (same length as data), also compute binned-noise metrics.
+    """
+    data = np.asarray(data, dtype=float)
+    data = data[np.isfinite(data)]
+    if data.size == 0:
+        # return all expected keys as NaN
+        out = {f"{prefix}_{m}": np.nan for m in STATISTICS_METRICS}
+        return out
+
+    out = {
+        f"{prefix}_mean": float(np.mean(data)),
+        f"{prefix}_median": float(np.median(data)),
+        f"{prefix}_sigma": float(np.std(data)),
+        f"{prefix}_mad": float(np.median(np.abs(data - np.median(data)))),
+        f"{prefix}_min": float(np.min(data)),
+        f"{prefix}_max": float(np.max(data)),
+        f"{prefix}_ptp": float(np.ptp(data)),
+        f"{prefix}_p01": float(np.percentile(data, 1)),
+        f"{prefix}_p99": float(np.percentile(data, 99)),
+        f"{prefix}_skew": float(stats.skew(data)) if data.size >= 3 else np.nan,
+        f"{prefix}_kurtosis": float(stats.kurtosis(data)) if data.size >= 4 else np.nan,
+    }
+
+    # Binned noise (only if times are supplied and align)
+    out[f"{prefix}_bin_noise_1h"] = np.nan
+    out[f"{prefix}_bin_noise_3h"] = np.nan
+    out[f"{prefix}_bin_noise_6h"] = np.nan
+
+    if times_hours is not None:
+        times_hours = np.asarray(times_hours, dtype=float)
+        if times_hours.size == data.size:
+            out[f"{prefix}_bin_noise_1h"] = calculate_binned_noise(data, times_hours, 1.0)
+            out[f"{prefix}_bin_noise_3h"] = calculate_binned_noise(data, times_hours, 3.0)
+            out[f"{prefix}_bin_noise_6h"] = calculate_binned_noise(data, times_hours, 6.0)
+
+    return out

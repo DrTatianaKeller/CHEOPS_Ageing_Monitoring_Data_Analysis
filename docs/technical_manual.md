@@ -163,6 +163,61 @@ upper = median + k × robust_sigma
 
 ---
 
+### 5.3 Combined Noise Plot (Lightcurve Only)
+
+This option is available for lightcurve-based analysis types:
+
+- DRP Lightcurve  
+- RPC Lightcurve  
+- PIPE Lightcurve (im / sa)  
+
+The Combined Noise Plot provides a unified visualization of noise metrics for each parameter.
+
+#### Functionality
+
+For a selected parameter, the following metrics can be displayed simultaneously:
+
+- sigma (unbinned noise)  
+- bin_noise_1h  
+- bin_noise_3h  
+- bin_noise_6h  
+
+Users can:
+
+- select which noise levels to display  
+- toggle logarithmic scaling on the Y-axis  
+
+---
+
+#### Purpose
+
+The combined plot allows direct comparison between:
+
+- raw noise (sigma)  
+- noise after temporal averaging  
+
+This helps to:
+
+- assess noise reduction efficiency  
+- detect correlated noise  
+- evaluate instrument performance over time  
+
+---
+
+#### Interpretation
+
+- If noise decreases with bin size → consistent with white noise  
+- If noise remains constant or decreases slowly → indicates correlated noise  
+
+---
+
+#### Notes
+
+- Only available for analysis types with lightcurve data  
+- Requires computed binned noise metrics  
+- Uses the same time axis as standard statistic plots  
+
+
 ## 6. Tables
 
 ### 6.1 Targets Table
@@ -221,19 +276,113 @@ Paths are defined in config.py.
 
 ## 8. Statistical Methods
 
-Implemented metrics:
 
-- mean
-- median
-- standard deviation (sigma)
-- MAD
-- min / max
-- ptp
-- percentiles (p01, p99)
-- skewness
-- kurtosis
+### 8.1 Standard Metrics
+
+The application computes the following statistical descriptors for each parameter:
+
+- mean — average value  
+- median — central value (robust to outliers)  
+- sigma — standard deviation  
+- MAD — median absolute deviation  
+- min / max — extrema  
+- ptp — peak-to-peak range  
+- p01 / p99 — percentiles  
+- skew — distribution asymmetry  
+- kurtosis — distribution tail heaviness  
 
 ---
+
+### 8.2 Binned Noise Estimation (Lightcurve Analysis)
+
+#### Purpose
+
+Binned noise metrics quantify how noise behaves when data are averaged over increasing time scales.
+
+These metrics are particularly useful for:
+
+- instrument stability assessment  
+- detection of correlated noise  
+- identification of time-dependent systematics  
+
+---
+
+#### Method
+
+Given a time series:
+
+xᵢ = x(tᵢ)
+
+Time is converted to elapsed hours:
+
+tᵢ(h) = (tᵢ − t₀) × 24
+
+For a bin size Δt, the data are partitioned into time bins:
+
+[t₀, t₀ + Δt), [t₀ + Δt, t₀ + 2Δt), ...
+
+For each bin k, the mean value is computed:
+
+x̄ₖ = mean(xᵢ in bin k)
+
+The binned noise is defined as:
+
+σ_bin = std(x̄ₖ)
+
+---
+
+#### Implemented Metrics
+
+- bin_noise_1h — noise in 1-hour bins  
+- bin_noise_3h — noise in 3-hour bins  
+- bin_noise_6h — noise in 6-hour bins  
+
+---
+
+#### Interpretation
+
+For uncorrelated (white) noise, the expected behaviour is:
+
+σ_bin ∝ σ₀ / √N
+
+Deviations from this relation indicate:
+
+- correlated noise  
+- instrumental systematics  
+- astrophysical variability  
+
+---
+
+#### Requirements
+
+Binned noise is computed only if:
+
+- time information is available (e.g., `MJD_TIME` or `UTC_TIME`)  
+- time and parameter arrays are aligned  
+- at least two valid bins can be formed  
+
+Otherwise, the result is set to NaN.
+
+---
+
+#### Limitations
+
+- uneven sampling may bias bin statistics  
+- large temporal gaps reduce the number of valid bins  
+- short observations may not produce meaningful results  
+
+---
+
+#### Implementation Notes
+
+- time is internally converted to relative hours  
+- binning uses uniform intervals starting from the first observation  
+- the final bin includes the right boundary  
+- empty bins are ignored  
+
+---
+
+(!) These metrics are visualized in the Combined Noise Plot (see Section 5.3).
 
 ## 9. Configuration
 

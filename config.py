@@ -13,7 +13,7 @@ dictionaries below without modifying the core application code.
 # List of statistical metrics calculated for each parameter
 # These are appended to parameter names (e.g., FLUX_mean, FLUX_median)
 STATISTICS_METRICS = ['mean', 'median', 'sigma', 'mad', 
-                      'min', 'max', 'ptp', 'p01', 'p99', 'skew', 'kurtosis']
+                      'min', 'max', 'ptp', 'p01', 'p99', 'skew', 'kurtosis','bin_noise_1h', 'bin_noise_3h', 'bin_noise_6h']
 
 # Human-readable descriptions for each statistic
 # Displayed in the sidebar and as plot captions
@@ -28,7 +28,10 @@ STAT_DEFINITIONS = {
     'p01': "1st percentile",
     'p99': "99th percentile",
     'skew': "Distribution asymmetry",
-    'kurtosis': "Distribution tail heaviness"
+    'kurtosis': "Distribution tail heaviness",
+    'bin_noise_1h': "Binned noise (1-hour bins): std of 1h-binned means",
+    'bin_noise_3h': "Binned noise (3-hour bins): std of 3h-binned means",
+    'bin_noise_6h': "Binned noise (6-hour bins): std of 6h-binned means"
 }
 
 
@@ -50,6 +53,7 @@ SCI_RAW_directory = f'{data_directory}/sci_raw_data'
 # Path to targets.csv file containing target-to-directory mapping
 TARGETS_CSV_PATH = f'{data_directory}/tables/targets.csv'
 
+LIGHT_CURVE_SOURCES = {'DRP_lightcurve', 'RPC_lightcurve', 'PIPE_lightcurve_sa', 'PIPE_lightcurve_im'}
 
 DATA_SOURCES = {
     'DRP_lightcurve': {

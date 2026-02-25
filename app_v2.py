@@ -19,6 +19,8 @@ from functions import * #(get_cached_data, get_year_separators, get_year_ticks,
                         #create_plot, create_dual_axis_plot, get_available_stats, get_stat_columns, get_stat_definition)
 from data_loader import load_raw_fits_data
 
+
+
 # =============================================================================
 # PAGE CONFIGURATION
 # =============================================================================
@@ -61,6 +63,7 @@ calculate_stats = analysis_config.get('calculate_stats', True)
 remove_outliers = False
 sigma_threshold = 3.0
 show_correlation = True
+show_combined_noise = False
 
 # Display Options section
 st.sidebar.markdown("---")
@@ -77,6 +80,11 @@ st.sidebar.subheader("Plot's Options")
 # Only show correlation/outlier options for analysis types that calculate statistics
 if calculate_stats:
     show_correlation = st.sidebar.checkbox("Show Correlation Analysis", value=True)
+    
+    is_lightcurve = analysis_config.get('source', '') in LIGHT_CURVE_SOURCES
+    if is_lightcurve:
+        show_combined_noise = st.sidebar.checkbox("Show Combined Noise Plot", value=False)
+
     remove_outliers = st.sidebar.checkbox("Remove Outliers", value=False)
     if remove_outliers:
         sigma_threshold = st.sidebar.slider("Sigma Threshold", 1.0, 5.0, 3.0, 0.5)
@@ -393,6 +401,44 @@ else:
                         st.warning(f"No data for: {', '.join(missing)}")
                 else:
                     st.info("Select statistics for both axes to display correlation plot.")
+                
+                st.markdown("---")
+
+            # -----------------------------------------------------------------
+            # COMBINED NOISE PLOT SECTION
+            # -----------------------------------------------------------------
+            if show_combined_noise:
+                st.subheader("Combined Noise")
+                st.caption("Original sigma and binned noise on the same plot per parameter")
+                
+                noise_options = {'sigma (unbinned)': 'sigma', '1h bin': '1h', '3h bin': '3h', '6h bin': '6h'}
+                opt_col1, opt_col2 = st.columns(2)
+                with opt_col1:
+                    selected_noise = st.multiselect(
+                        "Select noise levels to display",
+                        options=list(noise_options.keys()),
+                        default=list(noise_options.keys())
+                    )
+                with opt_col2:
+                    log_y_noise = st.checkbox("Logarithmic Y-axis", value=False, key="noise_log_y")
+                
+                selected_noise_keys = [noise_options[s] for s in selected_noise]
+                
+                analysis_config_params = ANALYSIS_TYPES[analysis_type]['parameters']
+                for group_name in selected_groups:
+                    if group_name not in analysis_config_params:
+                        continue
+                    base_params = analysis_config_params[group_name]
+                    for param in base_params:
+                        noise_cols = [f'{param}_sigma'] + [f'{param}_bin_noise_{b}' for b in ['1h', '3h', '6h']]
+                        has_any = any(c in filtered_df.columns for c in noise_cols)
+                        if has_any:
+                            fig = create_combined_noise_plot(
+                                filtered_df, param, plot_mode,
+                                year_shapes, year_tickvals, year_ticktext, year_x_range,
+                                selected_levels=selected_noise_keys, log_y=log_y_noise
+                            )
+                            st.plotly_chart(fig, width='stretch')
                 
                 st.markdown("---")
             
