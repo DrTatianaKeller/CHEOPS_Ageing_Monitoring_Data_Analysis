@@ -6,7 +6,6 @@ To add new analysis types, parameters, or statistics, simply update the
 dictionaries below without modifying the core application code.
 """
 
-#EPS_REL_threshold = 1e-6  # Threshold for numerical stability in statistics calculations
 
 # =============================================================================
 # STATISTICS CONFIGURATION
@@ -57,7 +56,7 @@ PIPE_lightcurve_directory = f'{data_directory}/PIPE_lightcurve'
 SCI_RAW_directory = f'{data_directory}/sci_raw_data'
 
 # Path to targets.csv file containing target-to-directory mapping
-TARGETS_CSV_PATH = f'{data_directory}/tables/targets.csv'
+TARGETS_CSV_PATH = f'{data_directory}/tables/targets_2.csv'
 
 
 LIGHT_CURVE_SOURCES = {'DRP_lightcurve', 'RPC_lightcurve', 'PIPE_lightcurve_sa', 'PIPE_lightcurve_im'}

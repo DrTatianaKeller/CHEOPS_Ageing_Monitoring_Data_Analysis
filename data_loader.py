@@ -39,58 +39,21 @@ def load_targets_table():
         return pd.DataFrame()
 
 
-def extract_tg_group(tg_str):
+def match_or_id(or_id1, or_id2):
     """
-    Extract the observation group number from a TG string.
-
-    TG format: TG[4-digit group][optional 2-digit observation suffix].
-    Only the first 4 digits are kept as the group identifier.
-    """
-    match = re.search(r'TG(\d+)', tg_str, re.IGNORECASE)
-    if match:
-        digits = match.group(1)
-        if len(digits) <= 4:
-            return int(digits)
-        else:
-            # Strip optional 2-digit suffix — keep only the group number
-            return int(digits[:4])
-    return None
-
-
-def fuzzy_match_or_id(or_id1, or_id2):
-    """
-    Check whether two OR IDs refer to the same observation group.
-
-    Handles variations in TG number formats (e.g. TG0001 vs TG000101).
-    Strips trailing _V<number> version suffixes before comparing.
+    Normalises case and strips trailing _V<number> version suffixes.
+    If no exact match, tries appending '01' to each side — handles the common
+    case where the CSV stores 'TG0001' but directories use 'TG000101'.
     """
     # Strip version suffix (e.g. _V1, _V23) and normalise case
     s1 = re.sub(r'_V\d+$', '', or_id1).lower().strip()
     s2 = re.sub(r'_V\d+$', '', or_id2).lower().strip()
 
-    # Exact match after normalisation
     if s1 == s2:
         return True
 
-    # Both must share the same PR (programme) number
-    pr1_match = re.search(r'(pr\d+)', s1)
-    pr2_match = re.search(r'(pr\d+)', s2)
-
-    if pr1_match and pr2_match:
-        pr1 = pr1_match.group(1)
-        pr2 = pr2_match.group(1)
-
-        if pr1 != pr2:
-            return False  # Different programme — cannot be the same target
-
-        # Compare TG group numbers (ignoring the optional observation suffix)
-        tg1 = extract_tg_group(s1)
-        tg2 = extract_tg_group(s2)
-
-        if tg1 is not None and tg2 is not None and tg1 == tg2:
-            return True
-
-    return False
+    # Try appending '01' to either side
+    return s1 + '01' == s2 or s2 + '01' == s1
 
 
 def get_target_from_or_id(or_id):
@@ -107,7 +70,7 @@ def get_target_from_or_id(or_id):
 
     for _, row in targets_df.iterrows():
         csv_or_id = str(row['OR ID']).strip()
-        if fuzzy_match_or_id(clean_or_id, csv_or_id):
+        if match_or_id(clean_or_id, csv_or_id):
             return row['Target']
 
     return None
@@ -188,7 +151,7 @@ def get_targets_accessibility_table():
         for source_key, col_name in checks:
             has_data = False
             for avail_or_id in available_or_ids_by_source.get(source_key, set()):
-                if fuzzy_match_or_id(clean_or_id, avail_or_id):
+                if match_or_id(clean_or_id, avail_or_id):
                     has_data = True
                     break
             out_row[col_name] = "✓" if has_data else "✗"
